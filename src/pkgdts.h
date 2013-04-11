@@ -59,17 +59,6 @@ struct _pkg_node {
 
 };
 
-struct _pkg_list {
-
-
-    struct _pkg_node * raw_list;
-    struct _pkg_node * raw_list_tail;
-
-    struct _pkg_node * pdt_list;
-    struct _pkg_node * pdt_list_tail;
-};
-
-
 raw_node * nq_raw_node_alloc(char * pkg_name);
 
 pkg_node * nq_pkg_node_alloc(char * pkg_name);

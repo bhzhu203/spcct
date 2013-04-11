@@ -24,7 +24,7 @@
 #include "pkgdts.h"
 #include "nqcommon.h"
 
-/* #define DEPCMD "/home/a/package_dep/datasrc/get-dep.py" */
+/* #define DEPCMD "/path/to/get-dep.py" */
 
 char * depcmd = NULL;
 
@@ -211,7 +211,7 @@ static int nq_regex_get_match(char * s, char * pattern, int cflags, int eflags,
     {
         regerror(r_val, &regex, errbuff, 1024);
         nq_errmsg("regcomp: %s", errbuff);
-        regfree(&regex);  /* I am not very sure whether must do it or not */
+        regfree(&regex);  /* I am not very sure whether must do it or not here */
         return -1;
     }
 

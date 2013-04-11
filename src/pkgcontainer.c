@@ -16,11 +16,11 @@
 #include "pkgcontainer.h"
 #include "nqcommon.h"
 
-
 typedef enum {
     CHILD,
     PARENT
 } OPTYPE ;
+
 
 static int nq_container_pkg_add_rs (pkg_rs_node ** node, unsigned int index, OPTYPE optype);
 
@@ -30,12 +30,6 @@ static int nq_container_add_rs_info(pkg_dts * pkgtab_p, unsigned int parent,
         unsigned int child);
 
 /*
-static int nq_container_update_pkg_level (container_dts * con_dts_p, 
-        unsigned int index, unsigned int parent);
-
-static int nq_container_is_dep_mutual(pkg_dts * pkgtab_p, unsigned int parent, 
-        unsigned int child);
-
 static int nq_container_child_is_parent (pkg_dts * pkgtab_p, unsigned int parent, 
         unsigned int child);
 */
@@ -61,7 +55,6 @@ container_dts * nq_container_dts_alloc (unsigned long len)
         nq_errmsg("malloc");
         return NULL;
     }
-
 
     /* 使用数组方式,可快速分配,避免逐个软件包进行 malloc, free ... */
 
@@ -189,97 +182,6 @@ static int nq_container_add_rs_info(pkg_dts * pkgtab_p, unsigned int parent,
     return r_val;
 }
 
-/*
-
-static int nq_container_update_pkg_level (container_dts * con_dts_p, 
-        unsigned int index, unsigned int parent)
-{
-
-    pkg_dts * me;
-    pkg_dts * new_parent_node; 
-    pkg_dts * pkgtab_p;
-
-    pkg_rs_node * child;
-
-    unsigned int level;
-    unsigned int new_level;
-    unsigned int level_dis;
-
-    pkgtab_p = con_dts_p->pkgtab;
-
-    new_parent_node = &pkgtab_p[parent];
-    me              = &pkgtab_p[index];
-
-    level            = me->level;
-    new_level = new_parent_node->level + 1;
-
-
-    // 父跟子没有相互依赖  并且  新级别比旧级别要往下 
-    if (!nq_container_is_dep_mutual(pkgtab_p, parent, index) && (new_level > level))
-    {
-        level_dis = new_level - level;
-        me->level = new_level;
-
-        child = me->child;
-
-        while (child)
-        {
-            pkgtab_p[child->data].level += level_dis;
-            child = child->next;
-        }
-    }
-
-    // 父中添加 子 
-    // 子中添加 祖先 
-
-    if (nq_container_pkg_add_rs (&me->ancestor, parent, PARENT) < 0)
-    {   
-        nq_warnmsg("Add RelationShip: \"%s\" will not add \"%s\" to its Ancestors list!", 
-                me->pkgname, new_parent_node->pkgname);
-    }   
-
-    if(nq_container_pkg_add_rs (&new_parent_node->child, index, CHILD) < 0)
-    {   
-        nq_warnmsg("Add RelationShip: \"%s\" will not add \"%s\" to its Children list!", 
-                new_parent_node->pkgname, me->pkgname);
-    }   
-
-    return 0;
-}
-*/
-
-/*
- * 检测父子是否相互依赖 
- * 1 是,
- * 0 否
- *
- ***   可在本函数中扩展: 维护一份相互依赖的包的信息
- */
-/*
-static int nq_container_is_dep_mutual(pkg_dts * pkgtab_p, unsigned int parent, unsigned int child)
-{
-
-    pkg_rs_node * parent_ancestor;
-    pkg_rs_node * parent_child;
-
-    pkg_rs_node * child_ancestor;
-    pkg_rs_node * child_child;
-
-    parent_ancestor = pkgtab_p[parent].ancestor;
-    parent_child    = pkgtab_p[parent].child;
-
-    child_ancestor = pkgtab_p[child].ancestor;
-    child_child    = pkgtab_p[child].child;
-
-
-    if (!(parent_child && parent_ancestor && child_child && child_ancestor))
-        return 0;
-
-    return 0;
-
-}
-*/
-
 static int nq_container_pkg_add_rs (pkg_rs_node ** node, unsigned int index, OPTYPE optype)
 {
     pkg_rs_node * lcl_node;
@@ -366,12 +268,11 @@ static void nq_container_pkg_dts_free_rs(pkg_dts *node)
 }
 
 /* 
- * 检查 child 的 child 中是否包含有 parent 
- * Note: 测试中发现有些圆圈依赖会造成第二次结构内级别调整时无限循环的严重问题
- *       因此加强本函数的判断:
- *     从 child 的 child 出发,,一直递归到结束, 中途如果遇到圆圈依赖,
+ * 检查 child 的 child 中是否包含有 parent (圆圈依赖)
+ *     从 child 的 child 出发,,一直到遍历结束, 中途如果遇到圆圈依赖,
  *     则立即返回 (跟pkgtraversal.c:nq_traversal_dep_recursion_check()
- *     部分功能相似, 不过后者只验直接的那层关系, 本函数也验间接的)
+ *     部分功能相似)
+ *
  *  Return: 0: child 与 parent 不在同一圆圈中, 
  *          1: 从child 出发, 遇到了 parent
  */
@@ -458,8 +359,8 @@ static int nq_container_child_is_parent (pkg_dts * pkgtab_p, unsigned int parent
 
 /*
  * 如果新级别比现在级别高(依赖层更往下), 则调整到新级别
- * Note: 本函数只要执行就是一定调整的, 因此要避免相互依赖
- *       的两个包使用本函数
+ * Note: 本函数只要执行符合条件就是一定调整的, 因此要避免圆圈依赖中的
+ *       任何两个包调用本函数
  */
 
 static int nq_container_first_adjust_level(pkg_dts * pkgtab_p, unsigned int new_parent_off, 
@@ -479,8 +380,8 @@ static int nq_container_first_adjust_level(pkg_dts * pkgtab_p, unsigned int new_
  *  调整算法, 假设要扫描依赖的包是 A :
  *      1) 按层(级数)扫描, 从第1层开始(第0层是 A )
  *      2) 调整包 P 成为其所有 ancestors 中最底层那个 parent 的子. 即
- *             级别为该 parent 的级别 + 1
- *      3) 若 P 与其 parent 是(直接的或间接的)相互依赖之关系,则不执行 2 .
+ *             层级别为该 parent 的级别 + 1
+ *      3) 若 P 与其 parent 是(直接的或间接的)相互依赖之关系(位于圆圈关系中),则不执行 2 .
  *      4) 扫描过程中,随时比较所扫描到的包的 level, 留下大者.作为循环的结束条件
  */
 
