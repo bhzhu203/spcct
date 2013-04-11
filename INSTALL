@@ -1,0 +1,17 @@
+
+Dependency
+    glibc
+
+
+Compiling 
+    make 
+
+
+Installation
+    make install
+
+    Note: The default install direcoty is /usr/local/bin/
+          You can specify DESTDIR for make to change it.
+
+   
+

@@ -1,0 +1,30 @@
+
+This program is a part of StartOS project, and distributing under GNU General Public License(http://www.gnu.org/licenses/gpl.txt).
+Copyright (C) 2012-2013 Dongguan Vali Network Technology Co.,Ltd.
+
+It use an external tool to obtains the Run-Time dependencies of one package,
+then checking the relationship of all the dependencies, and constructs
+their relationship structure, looking for the circular relationship in 
+the structure, when meet such relationship, output the relationship list to
+standard output.
+
+You can modify the file getdep.c to correspond to the other external tool.
+
+
+
+
+
+
+
+
+Dependency
+    glibc
+
+
+Compiling and installation please see the INSTALL file.
+
+
+
+
+
+By Tseesing <chen-qx@live.cn>  Apr 10th, 2013
