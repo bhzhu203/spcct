@@ -24,7 +24,7 @@
 #include "pkgdts.h"
 #include "nqcommon.h"
 
-/* #define DEPCMD "/home/a/package_dep/datasrc/get-dep.py" */
+/* #define DEPCMD "/path/to/get-dep.py" */
 
 char * depcmd = NULL;
 
@@ -211,7 +211,7 @@ static int nq_regex_get_match(char * s, char * pattern, int cflags, int eflags,
     {
         regerror(r_val, &regex, errbuff, 1024);
         nq_errmsg("regcomp: %s", errbuff);
-        regfree(&regex);  /* I am not very sure whether must do it or not */
+        regfree(&regex);  /* I am not very sure whether must do it or not here */
         return -1;
     }
 
@@ -263,22 +263,6 @@ int main(int argc, char *argv[])
             case 'C':
                 cmd |= OPT_DEPCMD;
                 depcmd = optarg;
-                /*
-                if (access(optarg, X_OK) < 0)
-                {
-                    nq_errmsg("%s: %s", optarg, strerror(errno));
-                    cmd |= OPT_ERROR;
-                }
-                else
-                {
-                    depcmd = optarg;
-                }
-                */
-
-                /*
-                 *  When specifies its arguments as compound statement OR/AND the argument
-                 *  take its own options, checking these arguments' X permission is insignficant
-                 */
                 break;
 
             case 'h':
