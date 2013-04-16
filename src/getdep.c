@@ -146,7 +146,7 @@ static int get_depend_func(char * name, raw_node ** list)
     {
         char tmp_char;
 
-        if(nq_regex_get_match(new_fstr, "\\b[a-zA-Z0-9+._-]*\\b", 0, 0, 1, m_offset) != 0)
+        if(nq_regex_get_match(new_fstr, "[a-zA-Z0-9+._-]\\+", 0, 0, 1, m_offset) != 0)
             break;
 
         child_name = (char *)malloc(m_offset[0].rm_eo - m_offset[0].rm_so + 1);
