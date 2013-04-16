@@ -24,7 +24,7 @@
 #include "pkgdts.h"
 #include "nqcommon.h"
 
-/* #define DEPCMD "/path/to/get-dep.py" */
+/* #define DEPCMD "/home/a/package_dep/datasrc/get-dep.py" */
 
 char * depcmd = NULL;
 
@@ -76,7 +76,7 @@ static int get_depend_func(char * name, raw_node ** list)
 
     if (!(fp = popen(getdep_cmd, "r")))
     {
-        nq_errmsg("open %s: %s", name, strerror(errno));
+        nq_errmsg("popen %s: %s", name, strerror(errno));
         return -1;
     }
 
@@ -211,7 +211,7 @@ static int nq_regex_get_match(char * s, char * pattern, int cflags, int eflags,
     {
         regerror(r_val, &regex, errbuff, 1024);
         nq_errmsg("regcomp: %s", errbuff);
-        regfree(&regex);  /* I am not very sure whether must do it or not here */
+        regfree(&regex);  /* I am not very sure whether must do it or not */
         return -1;
     }
 
@@ -262,6 +262,8 @@ int main(int argc, char *argv[])
 
             case 'C':
                 cmd |= OPT_DEPCMD;
+                depcmd = optarg;
+                /*
                 if (access(optarg, X_OK) < 0)
                 {
                     nq_errmsg("%s: %s", optarg, strerror(errno));
@@ -271,6 +273,12 @@ int main(int argc, char *argv[])
                 {
                     depcmd = optarg;
                 }
+                */
+
+                /*
+                 *  When specifies its arguments as compound statement OR/AND the argument
+                 *  take its own options, checking these arguments' X permission is insignficant
+                 */
                 break;
 
             case 'h':
