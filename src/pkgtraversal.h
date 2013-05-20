@@ -19,6 +19,8 @@
  *  return :
  *      -1: Error
  *       0: Success
+ *  
+ *  Note: This function must be reentrant, since multi-threads...
  */
 
 void nq_traversal_set_get_depend_func(int (* func)(char *, raw_node **));
@@ -28,6 +30,8 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **con_dts_p);
 int nq_traversal_get_cricle_dep (container_dts * con_dts_p);
 
 int nq_traversal_get_level_dep (container_dts * con_dts_p);
+
+int nq_traversal_get_pkg_depend(pkg_node * parent_node);
 
 
 #endif /* PKG_TRAVERSAL_H__ */

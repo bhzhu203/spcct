@@ -16,14 +16,8 @@
 
 #include "pkgtraversal.h"
 #include "pkgcontainer.h"
+#include "pkgthreadpool.h"
 #include "nqcommon.h"
-
-
-
-
-#if !defined(MAX_PTHREAD)
-#   define MAX_PTHREAD = 5
-#endif 
 
 
 struct _nqstack 
@@ -54,12 +48,11 @@ static int nq_traversal_reclaim_pkg_node(pkg_node *, pkg_node **);
 
 
 
+
 void nq_traversal_set_get_depend_func(int (* func)(char *, raw_node **))
 {
     get_depend_func = func;
 }
-
-static int nq_traversal_get_pkg_depend(pkg_node * parent_list);
 
 
 int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts) 
@@ -69,6 +62,8 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
     r_con_dts = r_con_dts;
 
     int r_val;
+
+    int raw_count = 0; /* 对原料 （求依赖的包） 进行计数，为 0 时，作为下边 while 循环结束条件 */
     
     pkg_node * free_node_list = NULL;
 
@@ -80,6 +75,14 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
     pkg_node * pkg_node_p;
     pkg_node * pkg_node_tmp_p;
 
+    nq_thread_pool * thread_pool = nq_thread_pool_create();
+    
+    if (!thread_pool)
+    {
+        nq_errmsg("Can't create threads pool!");
+        return -1;
+    }
+
     container_dts * con_dts_p = nq_container_dts_alloc(0);
             /* Don't worried about 0-length, it will adjust automatically */
 
@@ -88,11 +91,15 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
         nq_errmsg("Can't create packages container!");
         return -1;
     }
+
     
-    /* OK, now, All data structors have been created */
+    /* OK, now, All data structures have been created */
 
     nq_traversal_raw_add_to_raw_node_list(pkg_name, 0, 
             0, &raw_list, &free_node_list);
+
+    nq_thread_pool_add_raw_material(thread_pool, raw_list);
+    raw_list = NULL;
 
     if ((r_val = (nq_container_dts_insert (pkg_name, con_dts_p, 0))) < 0)
     {
@@ -100,15 +107,21 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
         nq_errmsg_exit("Critical: Can't handle any more! Now exit");
     }
 
+    ++raw_count;
+
     while(1)
     {
+        /*
         pkg_node_p = raw_list;
         raw_list = NULL;
+        */
+
+        pkg_node_p = nq_thread_pool_get_product(thread_pool);
+        --raw_count;
 
         while (pkg_node_p)
         {
-            nq_traversal_get_pkg_depend(pkg_node_p);
-
+            /* nq_traversal_get_pkg_depend(pkg_node_p); */
             child_raw_p = pkg_node_p->child;
 
             while(child_raw_p)
@@ -124,6 +137,11 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
                 {
                     nq_traversal_raw_add_to_raw_node_list(child_raw_p->name, r_val, 
                             pkg_node_p->level + 1, &raw_list, &free_node_list);
+
+                    nq_thread_pool_add_raw_material (thread_pool, raw_list);
+                    raw_list = NULL;
+
+                    ++raw_count;
                 }
 
                 else 
@@ -144,7 +162,7 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
 
         }
 
-        if (!raw_list)
+        if (raw_count == 0)
         {
             while (free_node_list)
             {
@@ -166,6 +184,8 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
     }
     else
         *r_con_dts = con_dts_p;
+
+    nq_thread_pool_destroy(thread_pool);
 
     return 0;
 }
@@ -228,7 +248,7 @@ static int nq_traversal_raw_add_to_raw_node_list(char * name, unsigned int con_o
 }
 
 
-static int nq_traversal_get_pkg_depend(pkg_node * parent_node)
+int nq_traversal_get_pkg_depend(pkg_node * parent_node)
 {
     if (!parent_node)
         return -1;

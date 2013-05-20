@@ -51,10 +51,9 @@ static int get_depend_func(char *, raw_node **);
 static int nq_regex_get_match(char * s, char * pattern, int cflags, int eflags, 
         size_t nmatch, regmatch_t * offset);
 
-
 static int get_depend_func(char * name, raw_node ** list)
 {
-    int r_val;
+    int r_val = 0;
     int n;
 
     FILE * fp;
@@ -104,7 +103,7 @@ static int get_depend_func(char * name, raw_node ** list)
         }
         memset(fstr, 0, MAX_LINE * n);
 
-        if ((r_val = fread(fstr, 1, MAX_LINE * n, fp)) < MAX_LINE * n)
+        if (fread(fstr, 1, MAX_LINE * n, fp) < MAX_LINE * n)
         {
             if (ferror(fp))
             {
