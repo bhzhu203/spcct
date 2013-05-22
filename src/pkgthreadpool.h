@@ -11,21 +11,12 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#include <fcntl.h>
-#include <mqueue.h>
-#include <sys/stat.h>
-
 #include "pkgdts.h"
 
 
 #if !defined(THREAD_NUM)
 #   define THREAD_NUM 10
 #endif /* */
-
-#if !defined(MSG_Q_STRING)
-#   define MSG_Q_STRING "/spcct_msg_queue"
-#endif /* */
-
 
 /* --------------------------------- */
 
@@ -39,13 +30,14 @@ typedef enum {
 }POOL_CMD;
 
 struct msg_node_ {
+    long mtype;
     POOL_CMD cmd; /* EXEC or EXIT */
 };
 
 struct nq_thread_pool_ {
 
     sem_t   pdt_sem;
-    mqd_t   msg_q;
+    int     msgid;
 
     int     threads;
 

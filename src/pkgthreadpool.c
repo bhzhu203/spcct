@@ -6,6 +6,10 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
 #include "pkgthreadpool.h"
 #include "nqcommon.h"
 #include "pkgtraversal.h"
@@ -14,19 +18,12 @@
 static void * pkg_thread_get_rdeps (void *);
 static int nq_thread_pool_check_value(nq_thread_pool *);
 
-
 nq_thread_pool   * nq_thread_pool_create ()
 {
     nq_debug("Initial thread pool");
     nq_thread_pool * r_pool = NULL;
     int loop_cnt;
     void * r_mem_ptr;
-
-    struct mq_attr msg_q_attr = {
-        .mq_flags = 0,
-        .mq_maxmsg = THREAD_NUM * 2,
-        .mq_msgsize = sizeof(msg_node)
-    };
 
     r_mem_ptr = malloc(sizeof(nq_thread_pool) + sizeof(pthread_t) * THREAD_NUM);
     memset(r_mem_ptr, 0, sizeof(nq_thread_pool) + sizeof(pthread_t) * THREAD_NUM);
@@ -35,21 +32,24 @@ nq_thread_pool   * nq_thread_pool_create ()
         return NULL;
 
     r_pool = (nq_thread_pool *)r_mem_ptr;
-    r_pool->ptid = (pthread_t *)(r_pool+1); /* A trick, simplify code */
+    r_pool->ptid = (pthread_t *)(r_pool+1); /* A trick, for simplifying code */
 
     pthread_mutex_init(&r_pool->pdt_mutex, NULL);
     pthread_mutex_init(&r_pool->raw_mutex, NULL);
 
     sem_init(&r_pool->pdt_sem, 0, 0); 
-    if((r_pool->msg_q = mq_open(MSG_Q_STRING, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR, &msg_q_attr)) < (mqd_t)0) 
+
+    if((r_pool->msgid = msgget(IPC_PRIVATE, 0600 | IPC_CREAT | IPC_EXCL)) < 0) 
     {
-        nq_errmsg("mq_open: %s", strerror(errno));
+        nq_errmsg("msgget: %s", strerror(errno));
         r_pool = NULL;
         goto ERROR_RET_1;
     }
-    
-    int pid_index = 0;
+
     nq_debug("Create threads..");
+
+    int pid_index = 0;
+
     for (loop_cnt = 0; loop_cnt < THREAD_NUM; loop_cnt++)
     {
         if (pthread_create(&r_pool->ptid[pid_index], NULL, pkg_thread_get_rdeps,  r_pool) != 0)
@@ -87,10 +87,8 @@ FUNC_RET:
 
 static void * pkg_thread_get_rdeps (void * data)
 {
-    unsigned int prio;
     int r_val;
-    char r_buf[sizeof(msg_node)];
-    msg_node * r_msg;
+    msg_node r_msg;
 
     pkg_node * raw_node;
     nq_thread_pool * thread_pool;
@@ -99,14 +97,13 @@ static void * pkg_thread_get_rdeps (void * data)
 
     while(1)
     {
-        if(mq_receive(thread_pool->msg_q, r_buf, sizeof(msg_node), &prio) == (ssize_t)-1)
+        if(msgrcv(thread_pool->msgid, &r_msg, sizeof(POOL_CMD), 0, 0) < 0)
         {
-            nq_errmsg("mq_receive");
+            nq_errmsg("msgrcv: %s", strerror(errno));
             continue ;
         }
 
-        r_msg = (msg_node *)r_buf;
-        if (r_msg->cmd == EXIT)
+        if (r_msg.cmd == EXIT)
             break;
 
         nq_debug("received EXEC message");
@@ -218,6 +215,7 @@ void nq_thread_pool_add_raw_material(nq_thread_pool * thread_pool, pkg_node * ra
     nq_debug("add one raw material");
     /* Add to the list head; */
     msg_node exec_cmd = {
+        .mtype = 1,
         .cmd = EXEC
     };
 
@@ -235,15 +233,15 @@ void nq_thread_pool_add_raw_material(nq_thread_pool * thread_pool, pkg_node * ra
 
     pthread_mutex_unlock(&thread_pool->raw_mutex);
 
-    // 使用 POSIX message queue 通知 
-    
-    mq_send(thread_pool->msg_q, (char *)&exec_cmd, sizeof(msg_node), 1);
+    /* 使用 SysV message queue 通知  */
+    msgsnd(thread_pool->msgid, &exec_cmd, sizeof(POOL_CMD), 0);
 }
 
 int nq_thread_pool_destroy (nq_thread_pool * thread_pool)
 {
     int loop_cnt;
     msg_node exit_cmd = {
+        .mtype = 1,
         .cmd = EXIT
     };
 
@@ -252,7 +250,7 @@ int nq_thread_pool_destroy (nq_thread_pool * thread_pool)
     nq_thread_pool_check_value(thread_pool);
 
     for (loop_cnt = 0; loop_cnt < thread_pool->threads; loop_cnt++)
-        mq_send(thread_pool->msg_q, (char *)&exit_cmd, sizeof(msg_node), 0);
+        msgsnd(thread_pool->msgid, &exit_cmd, sizeof(POOL_CMD), 0);
 
     for (loop_cnt = 0; loop_cnt < thread_pool->threads; loop_cnt++)
         pthread_join(thread_pool->ptid[loop_cnt], NULL);
@@ -262,7 +260,7 @@ int nq_thread_pool_destroy (nq_thread_pool * thread_pool)
     pthread_mutex_destroy(&thread_pool->raw_mutex);
     sem_destroy(&thread_pool->pdt_sem);
 
-    mq_unlink(MSG_Q_STRING);
+    msgctl(thread_pool->msgid, IPC_RMID, NULL);
 
     free(thread_pool);
     thread_pool = NULL;

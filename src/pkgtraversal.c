@@ -62,6 +62,7 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
     r_con_dts = r_con_dts;
 
     int r_val;
+    int func_ret_val = -1;
 
     int raw_count = 0; /* 对原料 （求依赖的包） 进行计数，为 0 时，作为下边 while 循环结束条件 */
     
@@ -89,7 +90,7 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
     if (!con_dts_p)
     {
         nq_errmsg("Can't create packages container!");
-        return -1;
+        goto RETURN_L1;
     }
 
     
@@ -103,8 +104,8 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
 
     if ((r_val = (nq_container_dts_insert (pkg_name, con_dts_p, 0))) < 0)
     {
-        nq_container_dts_destroy(con_dts_p);
-        nq_errmsg_exit("Critical: Can't handle any more! Now exit");
+        nq_errmsg("Critical: Can't handle any more!");
+        goto RETURN_L2;
     }
 
     ++raw_count;
@@ -185,9 +186,17 @@ int nq_traversal_all_dependence(char *pkg_name, container_dts **r_con_dts)
     else
         *r_con_dts = con_dts_p;
 
+    func_ret_val = 0;
+
+    goto RETURN_L1;
+
+RETURN_L2:    
+    nq_container_dts_destroy(con_dts_p);
+
+RETURN_L1:    
     nq_thread_pool_destroy(thread_pool);
 
-    return 0;
+    return func_ret_val;
 }
 
 int nq_traversal_get_level_dep (container_dts * con_dts_p)

@@ -5,7 +5,7 @@ MYNAME=spcct
 INCLUDEDIR = .
 DEBUG	= -g -DNQDEBUG
 CFLAGS  += -I$(INCLUDEDIR) -D_GNU_SOURCE
-LIBS += -lrt -lpthread
+LIBS += -lpthread
 CC	= gcc
 
 objects = getdep.o pkgcontainer.o nqcommon.o pkgdts.o pkgtraversal.o pkgthreadpool.o
