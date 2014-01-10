@@ -26,10 +26,9 @@ nq_thread_pool   * nq_thread_pool_create ()
     void * r_mem_ptr;
 
     r_mem_ptr = malloc(sizeof(nq_thread_pool) + sizeof(pthread_t) * THREAD_NUM);
-    memset(r_mem_ptr, 0, sizeof(nq_thread_pool) + sizeof(pthread_t) * THREAD_NUM);
-
     if (!r_mem_ptr)
         return NULL;
+    memset(r_mem_ptr, 0, sizeof(nq_thread_pool) + sizeof(pthread_t) * THREAD_NUM);
 
     r_pool = (nq_thread_pool *)r_mem_ptr;
     r_pool->ptid = (pthread_t *)(r_pool+1); /* A trick, for simplifying code */
